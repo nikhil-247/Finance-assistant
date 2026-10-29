@@ -39,43 +39,10 @@ def test_fetch_history_rejects_unsupported_period_before_provider_call(monkeypat
         market_data.fetch_history("AAPL", "10y")
 
 
-def test_fetch_history_wraps_provider_errors(monkeypatch):
+def test_fetch_history_wraps_provider_exception_without_leaking_details(monkeypatch):
     class BrokenTicker:
         def __init__(self, _symbol):
             pass
-
-        def history(self, **_kwargs):
-            raise TimeoutError("provider details should not leak")
-
-    monkeypatch.setattr(market_data.yf, "Ticker", BrokenTicker)
-
-    with pytest.raises(market_data.MarketDataError, match="Unable to fetch market data"):
-        market_data.fetch_history("AAPL", "1y")
-
-
-@pytest.mark.parametrize(
-    "frame, message",
-    [
-        (pd.DataFrame(), "No historical price data"),
-        (pd.DataFrame({"Open": [1.0, 2.0]}), "no closing-price column"),
-        (pd.DataFrame({"Close": [None, 1.0]}), "At least two valid"),
-    ],
-)
-def test_fetch_history_rejects_unusable_provider_responses(monkeypatch, frame, message):
-    class FakeTicker:
-        def __init__(self, _symbol):
-            pass
-
-        def history(self, **_kwargs):
-            return frame
-
-    monkeypatch.setattr(market_data.yf, "Ticker", FakeTicker)
-
-    with pytest.raises(market_data.MarketDataError, match=message):
-def test_fetch_history_wraps_provider_exception(monkeypatch):
-    class BrokenTicker:
-        def __init__(self, symbol):
-            assert symbol == "AAPL"
 
         def history(self, *, period, auto_adjust):
             assert period == "1y"
@@ -93,49 +60,39 @@ def test_fetch_history_wraps_provider_exception(monkeypatch):
     assert "upstream provider details" not in str(exc_info.value)
 
 
-def test_fetch_history_rejects_empty_provider_response(monkeypatch):
-    class EmptyTicker:
+@pytest.mark.parametrize(
+    "frame, message",
+    [
+        (pd.DataFrame(), "No historical price data"),
+        (pd.DataFrame({"Open": [1.0, 2.0]}), "no closing-price column"),
+        (pd.DataFrame({"Close": [None, 1.0]}), "At least two valid"),
+    ],
+)
+def test_fetch_history_rejects_unusable_provider_responses(
+    monkeypatch, frame, message
+):
+    class FakeTicker:
         def __init__(self, _symbol):
             pass
 
-        def history(self, *, period, auto_adjust):
-            return pd.DataFrame()
+        def history(self, **_kwargs):
+            return frame
 
-    monkeypatch.setattr(market_data.yf, "Ticker", EmptyTicker)
+    monkeypatch.setattr(market_data.yf, "Ticker", FakeTicker)
+
+    with pytest.raises(market_data.MarketDataError, match=message):
+        market_data.fetch_history("AAPL", "1y")
+
+
+def test_fetch_history_rejects_non_dataframe_provider_response(monkeypatch):
+    class InvalidTicker:
+        def __init__(self, _symbol):
+            pass
+
+        def history(self, **_kwargs):
+            return None
+
+    monkeypatch.setattr(market_data.yf, "Ticker", InvalidTicker)
 
     with pytest.raises(market_data.MarketDataError, match="No historical price data"):
-        market_data.fetch_history("AAPL", "1y")
-
-
-def test_fetch_history_rejects_response_without_close_column(monkeypatch):
-    class MissingCloseTicker:
-        def __init__(self, _symbol):
-            pass
-
-        def history(self, *, period, auto_adjust):
-            return pd.DataFrame({"Open": [100.0, 101.0]})
-
-    monkeypatch.setattr(market_data.yf, "Ticker", MissingCloseTicker)
-
-    with pytest.raises(market_data.MarketDataError, match="no closing-price column"):
-        market_data.fetch_history("AAPL", "1y")
-
-
-def test_fetch_history_rejects_fewer_than_two_valid_closes(monkeypatch):
-    dates = pd.date_range("2025-01-01", periods=2, freq="D")
-    history = pd.DataFrame({"Close": [float("nan"), 100.0]}, index=dates)
-
-    class InsufficientHistoryTicker:
-        def __init__(self, _symbol):
-            pass
-
-        def history(self, *, period, auto_adjust):
-            return history
-
-    monkeypatch.setattr(market_data.yf, "Ticker", InsufficientHistoryTicker)
-
-    with pytest.raises(
-        market_data.MarketDataError,
-        match="At least two valid closing prices",
-    ):
         market_data.fetch_history("AAPL", "1y")
