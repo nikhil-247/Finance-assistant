@@ -1,25 +1,29 @@
 # Finance Assistant — Market Analysis Prototype
 
+[![Tests](https://github.com/nikhil-247/Finance-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/nikhil-247/Finance-assistant/actions/workflows/tests.yml)
+
 A small Python application for exploring historical market prices and calculating transparent, descriptive metrics. It provides both a Streamlit dashboard and a FastAPI endpoint, backed by Yahoo Finance history through `yfinance`.
 
 > **Scope:** This repository is a market-data analysis prototype, not a multi-agent trading system. It does not execute trades, provide personalized investment advice, or predict future prices. Yahoo Finance data may be delayed, incomplete, or unavailable for some symbols.
 
 ## Features
 
-- Validate ticker symbols and supported history windows.
-- Fetch historical closing prices through `yfinance`.
-- Calculate the latest close, last-observation change, period return, 20-observation moving average, annualized historical volatility, and maximum observed drawdown.
-- View a price chart and metrics in Streamlit.
-- Access the same analysis through a FastAPI endpoint.
-- Unit and API tests that mock provider data so routine tests do not depend on a live market-data service.
+- Validate ticker symbols and supported history windows before calling the data provider.
+- Fetch, clean, and sort historical closing-price observations; return clear domain errors when provider data is missing or unusable.
+- Calculate latest close, last-observation change, period return, 20-observation moving average, annualized historical volatility, and maximum observed drawdown.
+- Explore the price history and descriptive metrics in a Streamlit dashboard with short-lived caching and a manual refresh control.
+- Access the same analysis through a FastAPI endpoint with input validation, bounded history output, health status, and API documentation.
+- Test calculations, validation, API responses, and provider failure paths with fixed or mocked data.
+- Run automated tests on Python 3.11 and 3.12 through GitHub Actions.
 
 ## Tech stack
 
-- Python 3.12+
+- Python 3.11+
 - pandas, yfinance
 - FastAPI and Uvicorn
 - Streamlit
 - pytest and FastAPI TestClient
+- GitHub Actions
 
 ## Run locally
 
@@ -31,11 +35,11 @@ cd Finance-assistant
 python -m venv .venv
 ```
 
-Activate the environment and install dependencies:
+Activate the environment and install development dependencies:
 
 ```bash
 # Windows PowerShell
-.venv\Scripts\Activate.ps1
+.venv\\Scripts\\Activate.ps1
 
 # macOS/Linux
 source .venv/bin/activate
@@ -67,15 +71,17 @@ Supported history periods: `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, and `max`.
 
 ## Tests
 
+Run the local test suite:
+
 ```bash
 python -m pytest -q
 ```
 
-Tests cover input validation, metric calculations, API responses, and provider-error handling. They use fixed data or mocked provider results, so they do not verify live Yahoo Finance availability.
+Tests cover metric calculations, malformed ticker and period inputs, history serialization, API responses, and provider failures. Provider calls are mocked in tests, so the suite does not depend on a live Yahoo Finance connection. GitHub Actions runs the tests on pushes to `main` and `improve/**`, and on pull requests targeting `main`.
 
 ## Metric definitions
 
-- **Daily change %:** percentage change between the most recent and previous available closing-price observations.
+- **Last-observation change %:** percentage change between the most recent and previous available closing-price observations; these observations are not guaranteed to represent consecutive calendar days.
 - **Period return %:** change from the first to the latest close returned for the selected history window.
 - **20-observation moving average:** average of the last 20 available closing-price observations (or fewer if the period has fewer observations).
 - **Annualized volatility:** standard deviation of recent daily percentage returns multiplied by the square root of 252, when sufficient observations are available.
@@ -85,18 +91,19 @@ These values summarize past prices only. Volatility uses a daily-trading-session
 
 ## Current limitations
 
-- There is no LLM, multi-agent orchestration, portfolio/account integration, or trade execution in this version.
-- This version does not persist user preferences or watchlists.
-- Live data access depends on Yahoo Finance and is not guaranteed.
-- Ticker validation prevents malformed input, but it does not certify that a symbol is valid or listed.
+- This version has no LLM, multi-agent orchestration, portfolio/account integration, trade execution, or future-price prediction.
+- User preferences and watchlists are not persisted.
+- Live data access depends on Yahoo Finance and is not guaranteed; caching is short-lived and is not a guarantee of freshness.
+- Ticker validation catches malformed input but does not certify that a symbol is valid or listed.
+- The service is a prototype and does not yet provide production-grade rate limiting, authentication, monitoring, or an SLA.
 - No investment outcome or performance guarantee is implied.
 
 ## Next steps
 
-1. Add cached, timestamped market data with provider attribution and status.
-2. Add an explicit comparison workflow for multiple tickers.
-3. Improve deployment configuration, rate limiting, and observability.
-4. Add a documented evaluation set for any future AI-generated summaries, with sources and uncertainty shown to users.
+1. Add explicit data freshness timestamps, provider attribution, and clearer stale-data status.
+2. Add a tested comparison workflow for multiple tickers.
+3. Improve deployment configuration, rate limiting, structured observability, and operational documentation.
+4. If AI-generated summaries are introduced, evaluate them against a documented dataset and show source provenance and uncertainty.
 
 ## Author
 
