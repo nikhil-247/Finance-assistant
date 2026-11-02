@@ -8,6 +8,7 @@ A small Python application for exploring historical market prices and calculatin
 
 - Validate ticker symbols and supported history windows.
 - Fetch historical closing prices through `yfinance`.
+- Ignore non-finite and non-positive closing prices before calculating metrics.
 - Calculate the latest close, last-observation change, period return, 20-observation moving average, annualized historical volatility, and maximum observed drawdown.
 - View a price chart and metrics in Streamlit.
 - Access the same analysis through a FastAPI endpoint.
