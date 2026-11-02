@@ -71,3 +71,47 @@ def test_fetch_history_rejects_fewer_than_two_valid_closes(monkeypatch):
         match="At least two valid closing prices",
     ):
         market_data.fetch_history("AAPL", "1y")
+
+
+def test_fetch_history_discards_non_finite_and_non_positive_closes(monkeypatch):
+    dates = pd.date_range("2025-01-01", periods=5, freq="D")
+    history = pd.DataFrame(
+        {"Close": [100.0, float("inf"), 0.0, -5.0, 110.0]},
+        index=dates,
+    )
+
+    class InvalidPricesTicker:
+        def __init__(self, _symbol):
+            pass
+
+        def history(self, *, period, auto_adjust):
+            return history
+
+    monkeypatch.setattr(market_data.yf, "Ticker", InvalidPricesTicker)
+
+    result = market_data.fetch_history("AAPL", "1y")
+
+    assert result["Close"].tolist() == [100.0, 110.0]
+
+
+def test_fetch_history_rejects_fewer_than_two_finite_positive_closes(monkeypatch):
+    dates = pd.date_range("2025-01-01", periods=4, freq="D")
+    history = pd.DataFrame(
+        {"Close": [100.0, float("inf"), 0.0, -5.0]},
+        index=dates,
+    )
+
+    class InvalidPricesTicker:
+        def __init__(self, _symbol):
+            pass
+
+        def history(self, *, period, auto_adjust):
+            return history
+
+    monkeypatch.setattr(market_data.yf, "Ticker", InvalidPricesTicker)
+
+    with pytest.raises(
+        market_data.MarketDataError,
+        match="At least two valid closing prices",
+    ):
+        market_data.fetch_history("AAPL", "1y")

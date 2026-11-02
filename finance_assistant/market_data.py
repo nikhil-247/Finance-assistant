@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 
 import pandas as pd
@@ -53,7 +54,10 @@ def fetch_history(ticker: str, period: str = "1y") -> pd.DataFrame:
 
     cleaned = history.copy()
     cleaned["Close"] = pd.to_numeric(cleaned["Close"], errors="coerce")
-    cleaned = cleaned.loc[cleaned["Close"].notna()].sort_index()
+    valid_closes = cleaned["Close"].map(
+        lambda value: pd.notna(value) and math.isfinite(float(value)) and value > 0
+    )
+    cleaned = cleaned.loc[valid_closes].sort_index()
     if len(cleaned) < 2:
         raise MarketDataError("At least two valid closing prices are required for analysis.")
 

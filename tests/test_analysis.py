@@ -26,6 +26,21 @@ def test_summary_rejects_missing_or_insufficient_prices():
         summarize_history(pd.DataFrame({"Close": [None, 1.0]}))
 
 
+def test_summary_ignores_non_finite_and_non_positive_prices():
+    history = pd.DataFrame({"Close": [100.0, float("inf"), 0.0, -5.0, 120.0]})
+
+    result = summarize_history(history)
+
+    assert result["observations"] == 2
+    assert result["period_return_pct"] == 20.0
+    assert result["max_drawdown_pct"] == 0.0
+
+
+def test_summary_rejects_fewer_than_two_finite_positive_prices():
+    with pytest.raises(ValueError, match="At least two finite, positive"):
+        summarize_history(pd.DataFrame({"Close": [float("inf"), 0.0, -5.0]}))
+
+
 def test_ticker_validation_normalizes_common_symbols():
     assert normalize_ticker(" aapl ") == "AAPL"
     assert normalize_ticker("btc-usd") == "BTC-USD"

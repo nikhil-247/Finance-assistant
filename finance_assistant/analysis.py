@@ -9,15 +9,19 @@ import pandas as pd
 def summarize_history(history: pd.DataFrame) -> dict[str, Any]:
     """Calculate descriptive metrics from historical closing prices.
 
-    Annualized volatility assumes observations represent daily trading sessions.
+    Only finite, positive closing prices are analyzed. Annualized volatility
+    assumes observations represent daily trading sessions.
     These indicators describe history and are not investment recommendations.
     """
     if "Close" not in history.columns:
         raise ValueError("History must contain a Close column.")
 
     close = pd.to_numeric(history["Close"], errors="coerce").dropna()
+    close = close.loc[
+        close.map(lambda value: math.isfinite(float(value)) and value > 0)
+    ]
     if len(close) < 2:
-        raise ValueError("At least two valid closing prices are required.")
+        raise ValueError("At least two finite, positive closing prices are required.")
 
     returns = close.pct_change().dropna()
     latest = float(close.iloc[-1])
